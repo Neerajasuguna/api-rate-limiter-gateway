@@ -1,0 +1,11 @@
+server:
+  port: 8081
+
+redis:
+  url: redis://localhost:6379
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
