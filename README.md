@@ -1,7 +1,6 @@
-
 🚀 Distributed API Rate Limiter – Spring Boot + Redis + Lua
 
-A production-grade API Gateway style rate limiter built using Spring Boot, Redis, and Lua scripts, implementing three industry-proven rate limiting algorithms:
+A production-grade API Gateway style rate limiter built with Spring Boot, Redis, and Lua scripts, implementing three industry-standard algorithms:
 
 Sliding Window Log
 
@@ -9,7 +8,7 @@ Token Bucket
 
 Sliding Window Counter
 
-Includes user plans, endpoint-specific rules, multi-layer protection, Prometheus metrics, structured logging, and rate-limit response headers — similar to Stripe, GitHub, Cloudflare, Kong, and API Gateways used in top companies.
+Includes user subscription plans, endpoint-specific rules, IP-based limits, global throttling, Prometheus metrics, structured logging (ELK-ready), and rate-limit response headers — similar to Stripe, GitHub, Cloudflare, Kong, and other modern API Gateways.
 
 📚 Table of Contents
 
@@ -25,9 +24,9 @@ How It Works (Deep Dive)
 
 Rate Limiting Algorithms
 
-Prometheus Metrics
-
 Rate Limit Response Headers
+
+Prometheus Metrics
 
 User Plans
 
@@ -39,55 +38,55 @@ Future Enhancements
 
 📌 Overview
 
-This project simulates a mini API Gateway entirely within Spring Boot by intercepting every incoming HTTP request, applying advanced rate-limiting rules, and enforcing distributed limits using Redis.
+This project implements a mini API Gateway inside Spring Boot, intercepting all incoming requests and applying layered distributed rate-limiting powered by Redis.
 
-It protects APIs across four independent layers:
+The system enforces four independent protections:
 
-Endpoint-specific limits
+Endpoint-specific rate limits
 
-Per-IP limits
+Per-IP limits (anti-bruteforce / anti-DDoS)
 
-Per-user limits
+Per-user limits (Token Bucket)
 
-Global system limits
+Global system-wide throttling
 
-All decisions are executed atomically using Lua scripts, making this scalable and production-ready.
+All limits run atomically using Lua scripts inside Redis.
 
 ⭐ Key Features
 
-✓ Three Rate Limiting Algorithms
+✔ 3 distributed rate limiting algorithms
 
-✓ Redis-backed distributed limiter
+✔ Redis-backed atomic operations (Lua)
 
-✓ Atomic operations via Lua (no race conditions)
+✔ Per-user, per-IP, per-endpoint, global limits
 
-✓ Per-User, Per-IP, Per-Endpoint, and Global limits
+✔ User subscription plans (FREE, PRO, ENTERPRISE)
 
-✓ Subscription plans (FREE, PRO, ENTERPRISE)
+✔ Prometheus counters for monitoring
 
-✓ Prometheus counters for monitoring
+✔ Structured JSON logs with MDC
 
-✓ JSON structured logs with MDC
+✔ Rate-limit response headers (GitHub-style)
 
-✓ Real-time rate-limit response headers
+✔ Interceptor-based API Gateway design
 
-✓ Extendable API Gateway design
+✔ Extendable configuration architecture
 
 🧰 Tech Stack
 Component	Technology
 Backend Framework	Spring Boot 3
-In-Memory Store	Redis (Docker)
-Scripting Engine	Lua Scripts
+Cache / Store	Redis (Docker)
+Scripting Engine	Lua
 Metrics	Micrometer + Prometheus
-Logging Format	Logstash JSON
-Gateway Mechanism	Spring Interceptor
+Logging	Logstash JSON (MDC)
+Gateway Mechanism	Spring MVC Interceptor
 📁 Project Structure
 src/main/java/com/org/gateway/api_rate_limiter
 │
-├── controller/              → Test endpoints
-├── gateway/                 → RateLimitInterceptor + WebConfig
-├── service/                 → SlidingWindow, TokenBucket, SlidingCounter
-├── config/                  → Rules, User Plans, Endpoint rules
+├── controller/                # Test endpoints
+├── gateway/                   # RateLimitInterceptor + WebConfig
+├── service/                   # SlidingWindow, TokenBucket, SlidingCounter
+├── config/                    # User plans, endpoint rules, rate rules
 │
 src/main/resources/redis
 ├── sliding_window.lua
@@ -95,160 +94,144 @@ src/main/resources/redis
 ├── token_bucket.lua
 
 🔍 How It Works (Deep Dive)
-
-This project behaves like a minimal API Gateway, enforcing rate limits before any controller/business logic executes.
-
-🛂 1. All Requests Pass Through Interceptor
+1️⃣ Every Request Goes Through Interceptor (API Gateway Layer)
 
 Flow:
 
-Client → RateLimitInterceptor → Controller → Response
+Client → Interceptor → Controller → Response
 
 
-The interceptor decides:
+The interceptor:
 
-✔ Allow request
-❌ Reject with 429 Too Many Requests
+Extracts metadata (IP, API key, method, path)
 
-This mirrors real gateways like Kong, Zuul, and Cloudflare Workers.
+Applies four layers of rate limiting
 
-🧵 2. Request Metadata Extracted
+Decides allow or block (429) before any controller runs
 
-From each request, we extract:
+2️⃣ Request Metadata Extracted
 
-IP Address
+From each request we collect:
 
-HTTP Method (GET, POST…)
+IP address
 
-Request Path
+HTTP method (GET/POST)
 
-API Key (if present, else "anonymous")
+Request path
 
-Correlated request ID for logs
+API key → defaults to "anonymous"
 
-This metadata drives all rate limit checks.
+Unique request ID (MDC)
 
-🛡 3. Four Independent Layers of Rate Limiting
-
-Each layer protects a different part of the system.
-
-🔵 A) Endpoint-Specific Rate Limits
-
-Some APIs are more expensive.
-
-Example rules:
-
-GET /orders → 20 req/min
-
-POST /payments → 3 req/min
-
-Configured in:
-
-EndpointRateLimitRules
-
-
-Only applies to matching endpoints.
-
-🟣 B) Per-IP Rate Limit (Sliding Window Log)
-
-Purpose: Prevent DDoS or brute-force from abusive clients.
-
-Redis stores a sorted set of timestamps:
-
-ip:<client_ip>
-
-
-Allows X requests per Y seconds per IP.
-
-🟢 C) Per-User Rate Limit (Token Bucket)
-
-Purpose: Limit burst traffic while still allowing steady flow.
-
-User subscription plans:
-
-FREE → small bucket
-
-PRO → larger bucket
-
-ENTERPRISE → biggest bucket
-
-Controls:
-
-Capacity (burst)
-
-Refill rate (constant tokens per second)
-
-🟠 D) Global Rate Limit (Sliding Counter)
-
-Purpose: Protect entire system from overload.
+3️⃣ Four Independent Rate-Limit Checks
+A) Endpoint-Specific Limits
 
 Example:
 
-Allow 500 req/min globally
+/orders → 20 req / min
+
+/payments → 3 req / min
+
+Some routes cost more → so they get tighter controls.
+
+B) Per-IP (Sliding Window Log)
+
+Prevents:
+
+Abuse
+
+Bots
+
+DoS spikes
+
+Redis key:
+
+ip:<ip_address>
 
 
-The Sliding Counter algorithm blends:
+Logs timestamps → counts within last X seconds.
 
-Previous window
+C) Per-User (Token Bucket)
 
-Current window
+User plans:
 
-Weighted average
+Plan	Capacity	Refill Rate
+FREE	10	1/sec
+PRO	50	5/sec
+ENTERPRISE	200	20/sec
 
-Used by:
+Great for:
 
-Nginx
+Burst traffic
 
-Envoy
+Fair usage enforcement
 
-Istio
+API monetization
 
-🔁 4. Atomic Lua Execution in Redis
+D) Global Limit (Sliding Counter)
 
-Each algorithm uses a Lua script to ensure:
+Protects the entire system from overload.
 
-✔ Atomic operations
-✔ No race conditions
-✔ O(1) latency
-✔ High throughput
+Example:
 
-Lua runs inside Redis, making decisions instantaneous.
-
-📊 5. Decision Order
-
-The request must pass all layers in order:
-
-1. Endpoint limit
-2. IP limit
-3. User bucket limit
-4. Global limit
+1000 requests / minute globally
 
 
-If ANY fails → return 429
-If ALL pass → allow request
+Uses dual-window calculation:
 
-This layered protection is identical to real API Gateways.
+weighted(previous) + current < limit
 
-📩 6. Response Includes Rate-Limit Headers
+4️⃣ Redis Lua Scripts for Atomic Decisions
 
-Every response includes:
+Why Lua?
 
-X-RateLimit-Limit: <max>
-X-RateLimit-Remaining: <remaining>
-X-RateLimit-Reset: <epoch_seconds>
+Prevents race conditions
+
+O(1) evaluation
+
+Safe for distributed systems
+
+Zero latency overhead
+
+Each Lua script:
+
+Reads
+
+Updates
+
+Expires
+
+Returns allow/block
+
+All inside a single atomic Redis transaction.
+
+5️⃣ Response Includes Rate-Limit Headers
+
+Example:
+
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 99
+X-RateLimit-Reset: 1763457739
 
 
-Used by:
+Similar to:
 
-GitHub API
-
-Twitter API
+GitHub
 
 Stripe
 
-📈 7. Prometheus Metrics for Monitoring
+Reddit
 
-Counters exposed:
+Twitter API
+
+6️⃣ Prometheus Metrics for Monitoring
+
+Metrics exported under:
+
+/actuator/prometheus
+
+
+Examples:
 
 rate_limit_allowed_total
 
@@ -260,56 +243,43 @@ rate_limit_block_endpoint_total
 
 rate_limit_block_global_total
 
-Perfect for:
-
-Grafana dashboards
-
-Alerts
-
-SRE visibility
-
-📜 8. Structured JSON Logs (ELK-ready)
-
-Using Logstash encoder, logs include:
-
-method
-
-path
-
-ip
-
-apiKey
-
-request_id
-
-These logs are searchable, structured, cloud-ready.
+Perfect for Grafana dashboards.
 
 🧮 Rate Limiting Algorithms
+
+Explanation of each algorithm:
+
 Sliding Window Log
 
-Stores timestamps in Redis sorted set
+Stores timestamp of every request
 
-Removes expired entries
+Removes expired timestamps
 
-Allows if count < limit
-✔ Highly accurate
-✔ Good for per-IP rules
+Checks count within window
+
+Good for per-IP precision
 
 Token Bucket
 
-Perfect for burst control
+Bucket has capacity
 
-Refills tokens every second
+Refills at constant rate
 
-Subtracts 1 token per request
-✔ Used by Google Cloud, Stripe
+Request consumes 1 token
 
-Sliding Window Counter
+Allows bursts
 
-Approximate but efficient
+Used by Stripe, Google Cloud.
 
-Combines previous + current window
-✔ Ideal for global limits
+Sliding Counter
+
+Two windows overlap
+
+Weighted calculation
+
+Used by Nginx / Envoy / Cloudflare
+
+Great for global limits.
 
 📡 Prometheus Metrics
 
@@ -318,9 +288,9 @@ Access metrics:
 http://localhost:8081/actuator/prometheus
 
 
-Example:
+Example output:
 
-rate_limit_allowed_total 105
+rate_limit_allowed_total 128
 rate_limit_block_ip_total 12
 rate_limit_block_user_total 3
 rate_limit_block_global_total 1
@@ -330,37 +300,37 @@ rate_limit_block_global_total 1
 Example:
 
 HTTP/1.1 200 OK
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 99
+X-RateLimit-Limit: 50
+X-RateLimit-Remaining: 49
 X-RateLimit-Reset: 1763457739
 
 👤 User Plans
-Plan	IP Limit	User Capacity	Refill Rate	Global Limit
-FREE	5/10s	10	1/sec	100/min
-PRO	20/10s	50	5/sec	500/min
-ENTERPRISE	100/10s	200	20/sec	2000/min
+Plan	IP Limit	Bucket Capacity	Refill Rate	Global Limit
+FREE	5/10s	10	1/s	100/min
+PRO	20/10s	50	5/s	500/min
+ENTERPRISE	100/10s	200	20/s	2000/min
 ▶️ Run Locally
 Start Redis
 docker run -d --name api-rate-redis -p 6379:6379 redis:7
 
-Run Spring Boot
+Start Spring Boot
 mvn spring-boot:run
 
 📌 API Endpoints
 Endpoint	Method	Description
-/test	GET	Test route with all rate limits applied
-/rate-limiter/sliding-log	GET	Sliding window log test
-/rate-limiter/token-bucket	GET	Token bucket test
-/rate-limiter/sliding-counter	GET	Sliding counter test
+/test	GET	Test endpoint with all rate limits
+/rate-limiter/sliding-log	GET	Sliding Window Log demo
+/rate-limiter/token-bucket	GET	Token Bucket demo
+/rate-limiter/sliding-counter	GET	Sliding Counter demo
 /rate-limiter/health	GET	Health check
 🚧 Future Enhancements
 
-Distributed tracing (Jaeger / Zipkin)
+Dynamic limits from database
 
-JWT-based user identity
+Distributed tracing (Jaeger/Zipkin)
 
-Dynamic rate limits from database
+JWT-based authentication
 
-Dashboard to visualize usage
+Admin dashboard for monitoring usage
 
-Circuit breaker (Resilience4j)
+API key provisioning portal
