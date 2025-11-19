@@ -13,18 +13,18 @@ Includes **user subscription plans**, **endpoint-specific rules**, **IP-based li
 
 ## 📚 Table of Contents
 
-* [Overview](#overview)
-* [Key Features](#key-features)
-* [Tech Stack](#tech-stack)
-* [Project Structure](#project-structure)
-* [How It Works (Deep Dive)](#how-it-works-deep-dive)
-* [Rate Limiting Algorithms](#rate-limiting-algorithms)
-* [Rate Limit Response Headers](#rate-limit-response-headers)
-* [Prometheus Metrics](#prometheus-metrics)
-* [User Plans](#user-plans)
-* [Run Locally](#run-locally)
-* [API Endpoints](#api-endpoints)
-* [Future Enhancements](#future-enhancements)
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [How It Works (Deep Dive)](#how-it-works-deep-dive)
+- [Rate Limiting Algorithms](#rate-limiting-algorithms)
+- [Prometheus Metrics](#prometheus-metrics)
+- [Rate Limit Response Headers](#rate-limit-response-headers)
+- [User Plans](#user-plans)
+- [Run Locally](#run-locally)
+- [API Endpoints](#api-endpoints)
+- [Future Enhancements](#future-enhancements)
 
 ---
 
